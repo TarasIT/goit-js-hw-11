@@ -1,96 +1,127 @@
 import './css/styles.css';
-import { fetchCountries } from './fetchCountries';
-import debounce from 'lodash.debounce';
+import PhotosLoadService from './photos-request';
 import Notiflix from 'notiflix';
+import 'simplelightbox/dist/simple-lightbox.min.css';
+import SimpleLightbox from 'simplelightbox';
 
 const refs = {
-  searchBox: document.querySelector('#search-box'),
-  countryList: document.querySelector('.country-list'),
-  countryInfo: document.querySelector('.country-info'),
+  searchform: document.querySelector('#search-form'),
+  input: document.querySelector('#search-form > input'),
+  submitBtn: document.querySelector('#search-form > button'),
+  gallery: document.querySelector('.gallery'),
+  loadMoreBtn: document.querySelector('.load-more'),
 };
 
-const DEBOUNCE_DELAY = 300;
+const photosLoadService = new PhotosLoadService();
+const simpleLightBox = new SimpleLightbox('.gallery a', {
+  captionSelector: 'img',
+  captionType: 'attr',
+  captionsData: 'alt',
+  captionDelay: 250,
+});
 
-refs.searchBox.addEventListener(
-  'input',
-  debounce(searchCountry, DEBOUNCE_DELAY)
-);
+refs.searchform.addEventListener('submit', searchPhoto);
+refs.loadMoreBtn.addEventListener('click', renderNextPhotosGroup);
 
-function searchCountry(event) {
-  const country = event.target.value.trim();
+function searchPhoto(event) {
+  event.preventDefault();
+  photosLoadService.query = refs.input.value;
 
-  if (country === '') {
-    clearCountriesList();
-    clearSelectedCountry();
-    return;
+  if (photosLoadService.query === '') {
+    return Notiflix.Notify.info(
+      'Please, enter youre request in the search form.'
+    );
   }
 
-  fetchCountries(country)
-    .then(country => {
-      if (country.length > 10) {
-        clearCountriesList();
-        clearSelectedCountry();
-        Notiflix.Notify.info(
-          'Too many matches found. Please enter a more specific name.'
-        );
-      }
-      if (country.length >= 2 && country.length <= 10) {
-        renderCountriesList(country);
-        clearSelectedCountry();
-      }
-
-      if (country.length === 1) {
-        renderSelectedCountry(country);
-        clearCountriesList();
-      }
-    })
-    .catch(() => {
-      clearCountriesList();
-      clearSelectedCountry();
-      Notiflix.Notify.failure('Oops, there is no country with that name.');
-    });
+  renderFirstPhotosGroup();
+  clearPhotosGallery();
+  hideLoadMoreBtn();
 }
 
-function renderSelectedCountry(country) {
-  const markup = country
-    .map(country => {
-      const { name, capital, population, languages, flags } = country;
-      const nativeLanguages = Object.values(languages);
+async function renderFirstPhotosGroup() {
+  try {
+    photosLoadService.resetPage();
+
+    const obtainedPhotos = await photosLoadService.requestPhotos();
+    const { hits, total } = obtainedPhotos;
+
+    renderPhotosGallery(obtainedPhotos);
+    simpleLightBox.refresh();
+    showLoadMoreBtn();
+
+    if (hits.length >= 1) {
+      Notiflix.Notify.info(`Hooray! We found ${total} images.`);
+    }
+
+    if (hits.length === 0) {
+      hideLoadMoreBtn();
+      return Notiflix.Notify.failure(
+        'Sorry, there are no images matching your search query. Please try again.'
+      );
+    }
+  } catch (err) {
+    console.log(err);
+  }
+}
+
+async function renderNextPhotosGroup() {
+  try {
+    const obtainedPhotos = await photosLoadService.requestPhotos();
+    const { hits } = obtainedPhotos;
+
+    renderPhotosGallery(obtainedPhotos);
+    simpleLightBox.refresh();
+    showLoadMoreBtn();
+
+    if (hits.length < photosLoadService.photosSearchLimit) {
+      hideLoadMoreBtn();
+      return Notiflix.Notify.info(
+        "We're sorry, but you've reached the end of search results."
+      );
+    }
+  } catch (err) {
+    console.log(err);
+  }
+}
+
+function renderPhotosGallery({ hits }) {
+  const markup = hits
+    .map(hit => {
+      const {
+        webformatURL,
+        largeImageURL,
+        tags,
+        likes,
+        views,
+        comments,
+        downloads,
+      } = hit;
 
       return `
-            <div class="container">
-              <img class="flag" src="${flags.svg}" width="100" height="70" alt="The flag of ${name.official}">
-              <h1 class="country-title">${name.official}</h1>
-            </div>
-            <p><span class="option">Capital:</span> ${capital}</p>
-            <p><span class="option">Population:</span> ${population}</p>
-            <p><span class="option">Languages:</span> ${nativeLanguages}</p>
-        `;
+      <a class="gallery__item" href=${largeImageURL}>
+        <div class="photo-card">
+          <img class="gallery__image" src="${webformatURL}" alt="${tags}" loading="lazy" width=300 height=200>
+          <div class="info">
+            <p class="info-item"><b>Likes:</b> <span>${likes}</span></p>
+            <p class="info-item"><b>Views:</b> <span>${views}</span></p>
+            <p class="info-item"><b>Comments:</b> <span>${comments}</span></p>
+            <p class="info-item"><b>Downloads:</b> <span>${downloads}</span></p>
+          </div>
+        </div>
+      </a>`;
     })
     .join('');
-  refs.countryInfo.innerHTML = markup;
+  refs.gallery.insertAdjacentHTML('beforeend', markup);
 }
 
-function renderCountriesList(country) {
-  const markup = country
-    .map(country => {
-      const { name, flags } = country;
-
-      return `
-            <li class="country-preview">
-              <img class="flag" src="${flags.svg}" width="50" height="30" alt="The flag of ${name.official}">
-              <p>${name.official}</p>
-            </li>
-        `;
-    })
-    .join('');
-  refs.countryList.innerHTML = markup;
+function clearPhotosGallery() {
+  return (refs.gallery.innerHTML = '');
 }
 
-function clearSelectedCountry() {
-  return (refs.countryInfo.innerHTML = '');
+function showLoadMoreBtn() {
+  refs.loadMoreBtn.classList.remove('visually-hidden');
 }
 
-function clearCountriesList() {
-  return (refs.countryList.innerHTML = '');
+function hideLoadMoreBtn() {
+  refs.loadMoreBtn.classList.add('visually-hidden');
 }

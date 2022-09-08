@@ -39,7 +39,6 @@ async function renderFirstPhotosGroup(event) {
     const { hits, total } = obtainedPhotos;
 
     renderPhotosGallery(obtainedPhotos);
-
     simpleLightBox.refresh();
     firstPhotosSmoothScroll();
 

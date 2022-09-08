@@ -7,9 +7,7 @@ import SimpleLightbox from 'simplelightbox';
 const refs = {
   searchform: document.querySelector('#search-form'),
   input: document.querySelector('#search-form > input'),
-  submitBtn: document.querySelector('#search-form > button'),
   gallery: document.querySelector('.gallery'),
-  loadMoreBtn: document.querySelector('.load-more'),
 };
 
 const photosLoadService = new PhotosLoadService();
@@ -20,26 +18,21 @@ const simpleLightBox = new SimpleLightbox('.gallery a', {
   captionDelay: 250,
 });
 
-refs.searchform.addEventListener('submit', searchPhoto);
-refs.loadMoreBtn.addEventListener('click', renderNextPhotosGroup);
+refs.searchform.addEventListener('submit', renderFirstPhotosGroup);
+window.addEventListener('scroll', renderNextPhotosGroup);
 
-function searchPhoto(event) {
-  event.preventDefault();
-  photosLoadService.query = refs.input.value;
-
-  if (photosLoadService.query === '') {
-    return Notiflix.Notify.info(
-      'Please, enter youre request in the search form.'
-    );
-  }
-
-  renderFirstPhotosGroup();
-  clearPhotosGallery();
-  hideLoadMoreBtn();
-}
-
-async function renderFirstPhotosGroup() {
+async function renderFirstPhotosGroup(event) {
   try {
+    event.preventDefault();
+    photosLoadService.query = refs.input.value;
+
+    if (photosLoadService.query === '') {
+      return Notiflix.Notify.info(
+        'Please, enter youre request in the search form.'
+      );
+    }
+
+    clearPhotosGallery();
     photosLoadService.resetPage();
 
     const obtainedPhotos = await photosLoadService.requestPhotos();
@@ -47,14 +40,12 @@ async function renderFirstPhotosGroup() {
 
     renderPhotosGallery(obtainedPhotos);
     simpleLightBox.refresh();
-    showLoadMoreBtn();
 
     if (hits.length >= 1) {
       Notiflix.Notify.info(`Hooray! We found ${total} images.`);
     }
 
     if (hits.length === 0) {
-      hideLoadMoreBtn();
       Notiflix.Notify.failure(
         'Sorry, there are no images matching your search query. Please try again.'
       );
@@ -66,18 +57,20 @@ async function renderFirstPhotosGroup() {
 
 async function renderNextPhotosGroup() {
   try {
-    const obtainedPhotos = await photosLoadService.requestPhotos();
-    const { hits } = obtainedPhotos;
+    const { scrollTop, scrollHeight, clientHeight } = document.documentElement;
 
-    renderPhotosGallery(obtainedPhotos);
-    simpleLightBox.refresh();
-    showLoadMoreBtn();
+    if (clientHeight + scrollTop >= scrollHeight - 1) {
+      const obtainedPhotos = await photosLoadService.requestPhotos();
+      const { hits } = obtainedPhotos;
 
-    if (hits.length < photosLoadService.photosSearchLimit) {
-      hideLoadMoreBtn();
-      return Notiflix.Notify.info(
-        "We're sorry, but you've reached the end of search results."
-      );
+      renderPhotosGallery(obtainedPhotos);
+      simpleLightBox.refresh();
+
+      if (hits.length < photosLoadService.photosSearchLimit) {
+        return Notiflix.Notify.info(
+          "We're sorry, but you've reached the end of search results."
+        );
+      }
     }
   } catch (err) {
     console.log(err);
@@ -116,12 +109,4 @@ function renderPhotosGallery({ hits }) {
 
 function clearPhotosGallery() {
   return (refs.gallery.innerHTML = '');
-}
-
-function showLoadMoreBtn() {
-  refs.loadMoreBtn.classList.remove('visually-hidden');
-}
-
-function hideLoadMoreBtn() {
-  refs.loadMoreBtn.classList.add('visually-hidden');
 }

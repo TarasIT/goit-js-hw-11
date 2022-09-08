@@ -6,7 +6,7 @@ export default class PhotosLoadService {
   constructor() {
     this.searchPhotos = '';
     this.page = 1;
-    this.photosSearchLimit = 10;
+    this.photosSearchLimit = 40;
   }
 
   async requestPhotos() {

@@ -39,7 +39,9 @@ async function renderFirstPhotosGroup(event) {
     const { hits, total } = obtainedPhotos;
 
     renderPhotosGallery(obtainedPhotos);
+
     simpleLightBox.refresh();
+    firstPhotosSmoothScroll();
 
     if (hits.length >= 1) {
       Notiflix.Notify.info(`Hooray! We found ${total} images.`);
@@ -65,6 +67,7 @@ async function renderNextPhotosGroup() {
 
       renderPhotosGallery(obtainedPhotos);
       simpleLightBox.refresh();
+      nextPhotosSmoothScroll();
 
       if (hits.length < photosLoadService.photosSearchLimit) {
         return Notiflix.Notify.info(
@@ -109,4 +112,24 @@ function renderPhotosGallery({ hits }) {
 
 function clearPhotosGallery() {
   return (refs.gallery.innerHTML = '');
+}
+
+function firstPhotosSmoothScroll() {
+  const searchFormHeight = refs.searchform.getBoundingClientRect().height;
+
+  window.scrollTo({
+    top: searchFormHeight * 1.25,
+    behavior: 'smooth',
+  });
+}
+
+function nextPhotosSmoothScroll() {
+  const photosCardHeight = document
+    .querySelector('.gallery__item')
+    .getBoundingClientRect().height;
+
+  window.scrollBy({
+    top: photosCardHeight * 2,
+    behavior: 'smooth',
+  });
 }

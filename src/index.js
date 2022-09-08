@@ -43,7 +43,7 @@ async function renderFirstPhotosGroup(event) {
     firstPhotosSmoothScroll();
 
     if (hits.length >= 1) {
-      Notiflix.Notify.info(`Hooray! We found ${total} images.`);
+      Notiflix.Notify.success(`Hooray! We found ${total} images.`);
     }
 
     if (hits.length === 0) {

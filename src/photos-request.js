@@ -20,8 +20,8 @@ export default class PhotosLoadService {
       page: this.page,
     });
 
-    this.incrementPage();
     const response = await axios(`${PHOTOS_BASE_URL}${searchParams}`);
+    this.incrementPage();
     return response.data;
   }
 
